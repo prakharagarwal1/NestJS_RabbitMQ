@@ -1,0 +1,1 @@
+// Orders HTTP controller removed — Consumer is a pure message consumer.

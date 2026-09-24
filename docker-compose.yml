@@ -1,0 +1,61 @@
+version: "3.8"
+
+services:
+  # RabbitMQ broker with the management plugin (UI) enabled
+  rabbitmq:
+    image: rabbitmq:4-management-alpine
+    container_name: rabbitmq
+    hostname: rabbitmq
+    ports:
+      - "5672:5672"      # AMQP port
+      - "15672:15672"    # Management UI
+    environment:
+      RABBITMQ_DEFAULT_USER: guest
+      RABBITMQ_DEFAULT_PASS: guest
+      RABBITMQ_MANAGEMENT_PORT: "15672"
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  producer:
+    build:
+      context: ./Producer
+      dockerfile: Dockerfile
+    container_name: producer
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+    env_file:
+      - ./Producer/.env
+    ports:
+      - "3000:3000"
+    restart: unless-stopped
+    command: npm run start:dev -- --poll=1000
+    # Bind-mount local source so edits are picked up by the polling watcher.
+    volumes:
+      - ./Producer/src:/app/src
+
+  consumer:
+    build:
+      context: ./Consumer
+      dockerfile: Dockerfile
+    container_name: consumer
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+    env_file:
+      - ./Consumer/.env
+    ports:
+      - "3001:3001"
+    restart: unless-stopped
+    command: npm run start:dev -- --poll=1000
+    # Bind-mount local source so edits are picked up by the polling watcher.
+    volumes:
+      - ./Consumer/src:/app/src
+
+volumes:
+  rabbitmq_data:
