@@ -1,5 +1,5 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
-import { map } from 'rxjs';
+import { randomUUID } from 'crypto';
 import { OrderDto } from './dto/index.js';
 import { ClientProxy } from '@nestjs/microservices';
 
@@ -12,12 +12,14 @@ export class OrdersService {
     private rabbitClient: ClientProxy,
   ) {}
 
-
   placeOrder(order: OrderDto) {
-    this.logger.log(`Placing order: ${JSON.stringify(order)}`);
-    this.rabbitClient.emit('orders-placed', order);
+    const correlationId = order.correlationId ?? randomUUID();
+    const enriched: OrderDto = { ...order, correlationId };
 
-    return { message: 'Order Placed!' };
+    this.logger.log(`Placing order: ${JSON.stringify(enriched)}`);
+    this.rabbitClient.emit('orders-placed', enriched);
+
+    return { message: 'Order Placed!', correlationId };
   }
 }
 
